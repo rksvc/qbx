@@ -3,17 +3,17 @@ import { computed, ref } from 'vue'
 
 // prettier-ignore
 const reasons = [
-  { name: 'Total', total: true, color: 'bg-slate-500' },
-  { name: 'BanInBlockedSubnet', color: 'bg-red-500', explanation: 'Ban peers in banned subnets' },
-  { name: 'BanWeirdClient', color: 'bg-orange-500', explanation: 'Ban peers with weird client names' },
-  { name: 'BanLeecherClient', color: 'bg-amber-500', explanation: 'Ban peers with well-known leecher client names' },
-  { name: 'BanObsoleteClient', color: 'bg-yellow-500', explanation: 'Ban peers with obsolete client names' },
-  { name: 'BanUploadedMoreThanTotalSize', color: 'bg-lime-500', explanation: 'Ban peers with uploaded data more than torrent total size' },
-  { name: 'BanNoProgress', color: 'bg-green-500', explanation: 'Ban peers with uploaded data exceeding 10 MB and no progress' },
-  { name: 'BanShrunkProgress', color: 'bg-emerald-500', explanation: 'Ban peers with shrunk progress' },
-  { name: 'BanUploadedExcessively', color: 'bg-teal-500', explanation: 'Ban peers with uploaded data more than increased progress' },
-  { name: 'BanSubnetTooManyPeersBanned', color: 'bg-cyan-500', explanation: 'Ban subnets with more than 4 banned peers' },
-  { name: 'BanSubnetTooManyPeers', color: 'bg-sky-500', explanation: 'Ban subnets with more than 4 peers' },
+  { name: 'Total', total: true, color: 'bg-slate-500/80' },
+  { name: 'BanInBlockedSubnet', color: 'bg-red-500/80', explanation: 'Ban peers in banned subnets' },
+  { name: 'BanWeirdClient', color: 'bg-orange-500/80', explanation: 'Ban peers with weird client names' },
+  { name: 'BanLeecherClient', color: 'bg-amber-500/80', explanation: 'Ban peers with well-known leecher client names' },
+  { name: 'BanObsoleteClient', color: 'bg-yellow-500/80', explanation: 'Ban peers with obsolete client names' },
+  { name: 'BanUploadedMoreThanTotalSize', color: 'bg-lime-500/80', explanation: 'Ban peers with uploaded data more than torrent total size' },
+  { name: 'BanNoProgress', color: 'bg-green-500/80', explanation: 'Ban peers with uploaded data exceeding 10 MB and no progress' },
+  { name: 'BanShrunkProgress', color: 'bg-emerald-500/80', explanation: 'Ban peers with shrunk progress' },
+  { name: 'BanUploadedExcessively', color: 'bg-teal-500/80', explanation: 'Ban peers with uploaded data more than increased progress' },
+  { name: 'BanSubnetTooManyPeersBanned', color: 'bg-cyan-500/80', explanation: 'Ban subnets with more than 4 banned peers' },
+  { name: 'BanSubnetTooManyPeers', color: 'bg-sky-500/80', explanation: 'Ban subnets with more than 4 peers' },
 ]
 
 type Log = { id: number; type: number; date: string; peer: string; client: string }
@@ -113,11 +113,7 @@ async function loadMoreLogs() {
         <tr v-for="{ id, type, date, peer, client } in logs" :key="id">
           <td class="p-2 border-t border-gray-400 border-r">{{ new Date(date).toLocaleString() }}</td>
           <td class="p-2 border-t border-gray-400 border-r text-center">
-            <span
-              class="p-1 px-2 text-white rounded-full opacity-70"
-              :class="reasons[type]?.color"
-              :title="reasons[type]?.explanation"
-            >
+            <span class="p-1 px-2 text-white rounded-full" :class="reasons[type]?.color" :title="reasons[type]?.explanation">
               {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
             </span>
           </td>
