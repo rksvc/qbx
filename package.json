@@ -1,0 +1,39 @@
+{
+	"name": "qbx",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"bundle": "vue-tsc --build && vite build",
+		"preview": "vite preview",
+		"lint": "eslint . && biome check",
+		"build_windows": "CC='zig cc -target x86_64-windows-gnu' CGO_ENABLED=1 GOOS=windows go build -ldflags='-s -w' -trimpath"
+	},
+	"dependencies": {
+		"@tailwindcss/vite": "^4.2.4",
+		"tailwindcss": "^4.2.4",
+		"vue": "^3.5.33"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.13",
+		"@types/node": "^25.6.0",
+		"@vitejs/plugin-vue": "^6.0.6",
+		"@vue/eslint-config-typescript": "^14.7.0",
+		"@vue/tsconfig": "^0.9.1",
+		"eslint": "^10.2.1",
+		"eslint-plugin-vue": "~10.8.0",
+		"jiti": "^2.6.1",
+		"prettier": "3.8.3",
+		"typescript": "~6.0.3",
+		"vite": "^8.0.10",
+		"vue-tsc": "^3.2.7"
+	},
+	"prettier": {
+		"printWidth": 130,
+		"semi": false,
+		"singleQuote": true,
+		"objectWrap": "collapse",
+		"arrowParens": "avoid"
+	}
+}
