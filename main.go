@@ -89,8 +89,6 @@ func init() {
 		log.Fatal(err)
 	}
 	_, err = db.Exec(`
-		pragma auto_vacuum = incremental;
-
 		create table if not exists logs (
 			id integer primary key autoincrement,
 			type integer,
@@ -98,12 +96,7 @@ func init() {
 			peer text,
 			client text
 		);
-
-		delete from logs where date < ?;
-
-		pragma incremental_vacuum;
-		pragma optimize;
-	`, time.Now().UTC().Add(-14*24*time.Hour))
+	`)
 	if err != nil {
 		log.Fatal(err)
 	}
