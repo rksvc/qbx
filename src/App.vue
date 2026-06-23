@@ -111,7 +111,11 @@ async function loadMoreLogs() {
         <tr v-for="{ id, type, date, peer, client } in logs" :key="id" class="hover:bg-current/10">
           <td class="p-2 border-t border-current/30 border-r text-center">{{ new Date(date).toLocaleString() }}</td>
           <td class="p-2 border-t border-current/30 border-r text-center">
-            <span class="p-1 px-2.5 text-white rounded-full" :class="reasons[type]?.color" :title="reasons[type]?.explanation">
+            <span
+              class="p-1 px-2.5 text-white rounded-full text-xs"
+              :class="reasons[type]?.color"
+              :title="reasons[type]?.explanation"
+            >
               {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
             </span>
           </td>
