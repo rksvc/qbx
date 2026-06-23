@@ -56,34 +56,35 @@ async function loadMoreLogs() {
 </script>
 
 <template>
-  <div class="m-4 p-3 border rounded-xl border-gray-400 text-current/80">
-    <div class="select-none">
+  <div class="m-4 p-3 border rounded-xl border-current/30 text-current/80 text-sm">
+    <div class="select-none whitespace-nowrap">
       qBittorrent Web API Version:
       <span
-        class="ml-1 p-1 px-1.5 text-sm rounded-full text-white outline outline-offset-1"
-        :class="[apiVer.version ? 'bg-green-500/80 outline-green-500/80' : 'bg-gray-500/80 outline-gray-500/80']"
+        class="ml-1 p-1 px-1.5 text-xs rounded-full text-white outline outline-offset-1"
+        :class="[
+          apiVer.version
+            ? apiVer.supported
+              ? 'bg-green-500/80 outline-green-500/80'
+              : 'bg-red-500/85 outline-red-500/85'
+            : 'bg-gray-500/80 outline-gray-500/80',
+        ]"
+        :title="apiVer.version && apiVer.supported ? undefined : 'qBittorrent API >= v2.3 required'"
       >
         {{ apiVer.version ? `v${apiVer.version}` : 'Unknown' }}
       </span>
-      <span
-        v-if="!apiVer.supported"
-        class="ml-2 p-1 px-1.5 text-sm rounded-full text-white outline outline-offset-1 bg-red-500/90 outline-red-500/90"
-        title="qBittorrent API >= v2.3 required"
-        >Unsupported</span
-      >
     </div>
 
     <div class="mt-2">
       <div
-        class="m-1 inline-block border border-gray-400 rounded-xl w-fit overflow-clip"
+        class="m-1 inline-block border border-current/30 rounded-xl w-fit overflow-clip"
         v-for="({ name, total, color, explanation }, i) in reasons"
         :key="name"
       >
-        <div class="p-1.5 text-center text-white border-b border-gray-400" :class="color" :title="explanation">
+        <div class="p-1.5 text-center text-white border-b border-current/30" :class="color" :title="explanation">
           {{ name }}
         </div>
         <div class="flex">
-          <span class="flex-1 flex flex-col text-center border-r border-gray-400">
+          <span class="flex-1 flex flex-col text-center border-r border-current/30">
             <span class="p-1 pb-0 text-xs select-none text-current/80 whitespace-nowrap">This Session</span>
             <span class="px-2">{{ total ? session : (stats[i]?.session ?? 0) }}</span>
           </span>
@@ -96,33 +97,30 @@ async function loadMoreLogs() {
     </div>
   </div>
 
-  <div class="p-4 pt-0">
-    <table class="w-full overflow-hidden border-separate border-spacing-0 border rounded-xl text-current/80 border-gray-400">
-      <caption class="mb-1 text-lg text-current/90 select-none">
-        <strong>Logs</strong>
-      </caption>
-      <thead class="text-center text-current/90 select-none">
+  <div class="p-4 text-sm">
+    <table class="w-full overflow-hidden border-separate border-spacing-0 border rounded-xl text-current/80 border-current/30">
+      <thead class="text-center text-current/80 select-none">
         <tr>
-          <th class="p-2 border-r border-gray-400">Date</th>
-          <th class="p-2 border-r border-gray-400">Type</th>
-          <th class="p-2 border-r border-gray-400">Peer</th>
+          <th class="p-2 border-r border-current/30">Date</th>
+          <th class="p-2 border-r border-current/30">Type</th>
+          <th class="p-2 border-r border-current/30">Peer</th>
           <th class="p-2">Client</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="{ id, type, date, peer, client } in logs" :key="id">
-          <td class="p-2 border-t border-gray-400 border-r">{{ new Date(date).toLocaleString() }}</td>
-          <td class="p-2 border-t border-gray-400 border-r text-center">
+        <tr v-for="{ id, type, date, peer, client } in logs" :key="id" class="hover:bg-current/10">
+          <td class="p-2 border-t border-current/30 border-r text-center">{{ new Date(date).toLocaleString() }}</td>
+          <td class="p-2 border-t border-current/30 border-r text-center">
             <span class="p-1 px-2.5 text-white rounded-full" :class="reasons[type]?.color" :title="reasons[type]?.explanation">
               {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
             </span>
           </td>
-          <td class="p-2 border-t border-gray-400 border-r">{{ peer }}</td>
-          <td class="p-2 border-t border-gray-400">{{ client }}</td>
+          <td class="p-2 border-t border-current/30 border-r">{{ peer }}</td>
+          <td class="p-2 border-t border-current/30">{{ client }}</td>
         </tr>
         <tr v-if="hasMoreLogs">
           <td
-            class="text-center py-1 hover:bg-current/15 border-t border-gray-400 select-none"
+            class="text-center py-1 hover:bg-current/10 border-t border-current/30 select-none"
             :class="{ 'hover:cursor-pointer': !loadingLogs }"
             colspan="4"
             @click="loadMoreLogs"
