@@ -21,7 +21,9 @@ type Log = { id: number; type: number; date: string; peer: string; client: strin
 const apiVer = ref({ version: '', supported: false })
 const stats = ref<Record<number, { session: number; all: number }>>({})
 const logs = ref<Log[]>([])
-const session = computed(() => Object.values(stats.value).reduce((prev, curr) => prev + curr.session, 0))
+const session = computed(() =>
+  Object.values(stats.value).reduce((prev, curr) => prev + curr.session, 0),
+)
 const all = computed(() => Object.values(stats.value).reduce((prev, curr) => prev + curr.all, 0))
 const hasMoreLogs = ref(true)
 const loadingLogs = ref(false)
@@ -56,11 +58,11 @@ async function loadMoreLogs() {
 </script>
 
 <template>
-  <div class="m-4 p-3 border rounded-xl border-current/30 text-current/80 text-sm">
-    <div class="select-none whitespace-nowrap">
+  <div class="m-4 rounded-xl border border-current/30 p-3 text-sm text-current/80">
+    <div class="whitespace-nowrap select-none">
       qBittorrent Web API Version:
       <span
-        class="ml-1 p-1 px-1.5 text-xs rounded-full text-white outline outline-offset-1"
+        class="ml-1 rounded-full p-1 px-1.5 text-xs text-white outline outline-offset-1"
         :class="[
           apiVer.version
             ? apiVer.supported
@@ -76,20 +78,26 @@ async function loadMoreLogs() {
 
     <div class="mt-2">
       <div
-        class="m-1 inline-block border border-current/30 rounded-xl w-fit overflow-clip"
+        class="m-1 inline-block w-fit overflow-clip rounded-xl border border-current/30"
         v-for="({ name, total, color, explanation }, i) in reasons"
         :key="name"
       >
-        <div class="p-1.5 text-center text-white border-b border-current/30" :class="color" :title="explanation">
+        <div
+          class="border-b border-current/30 p-1.5 text-center text-white"
+          :class="color"
+          :title="explanation"
+        >
           {{ name }}
         </div>
         <div class="flex">
-          <span class="flex-1 flex flex-col text-center border-r border-current/30">
-            <span class="p-1 pb-0 text-xs select-none text-current/80 whitespace-nowrap">This Session</span>
+          <span class="flex flex-1 flex-col border-r border-current/30 text-center">
+            <span class="p-1 pb-0 text-xs whitespace-nowrap text-current/80 select-none">
+              This Session
+            </span>
             <span class="px-2">{{ total ? session : (stats[i]?.session ?? 0) }}</span>
           </span>
-          <span class="flex-1 flex flex-col text-center">
-            <span class="p-1 pb-0 text-xs select-none text-current/80">All</span>
+          <span class="flex flex-1 flex-col text-center">
+            <span class="p-1 pb-0 text-xs text-current/80 select-none">All</span>
             <span class="px-2">{{ total ? all : (stats[i]?.all ?? 0) }}</span>
           </span>
         </div>
@@ -98,33 +106,37 @@ async function loadMoreLogs() {
   </div>
 
   <div class="p-4 text-sm">
-    <table class="w-full overflow-hidden border-separate border-spacing-0 border rounded-xl text-current/80 border-current/30">
+    <table
+      class="w-full border-separate border-spacing-0 overflow-hidden rounded-xl border border-current/30 text-current/80"
+    >
       <thead class="text-center text-current/80 select-none">
         <tr>
-          <th class="p-2 border-r border-current/30">Date</th>
-          <th class="p-2 border-r border-current/30">Type</th>
-          <th class="p-2 border-r border-current/30">Peer</th>
+          <th class="border-r border-current/30 p-2">Date</th>
+          <th class="border-r border-current/30 p-2">Type</th>
+          <th class="border-r border-current/30 p-2">Peer</th>
           <th class="p-2">Client</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="{ id, type, date, peer, client } in logs" :key="id" class="hover:bg-current/10">
-          <td class="p-2 border-t border-current/30 border-r text-center">{{ new Date(date).toLocaleString() }}</td>
-          <td class="p-2 border-t border-current/30 border-r text-center">
+          <td class="border-t border-r border-current/30 p-2 text-center">
+            {{ new Date(date).toLocaleString() }}
+          </td>
+          <td class="border-t border-r border-current/30 p-2 text-center">
             <span
-              class="p-1 px-2.5 text-white rounded-full text-xs"
+              class="rounded-full p-1 px-2.5 text-xs text-white"
               :class="reasons[type]?.color"
               :title="reasons[type]?.explanation"
             >
               {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
             </span>
           </td>
-          <td class="p-2 border-t border-current/30 border-r">{{ peer }}</td>
-          <td class="p-2 border-t border-current/30">{{ client }}</td>
+          <td class="border-t border-r border-current/30 p-2">{{ peer }}</td>
+          <td class="border-t border-current/30 p-2">{{ client }}</td>
         </tr>
         <tr v-if="hasMoreLogs">
           <td
-            class="text-center py-1 hover:bg-current/10 border-t border-current/30 select-none"
+            class="border-t border-current/30 py-1 text-center select-none hover:bg-current/10"
             :class="{ 'hover:cursor-pointer': !loadingLogs }"
             colspan="4"
             @click="loadMoreLogs"

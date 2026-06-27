@@ -1,18 +1,12 @@
-import {
-	defineConfigWithVueTs,
-	vueTsConfigs,
-} from '@vue/eslint-config-typescript'
-import { globalIgnores } from 'eslint/config'
+import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import pluginVue from 'eslint-plugin-vue'
+import { globalIgnores } from 'eslint/config'
 
 export default defineConfigWithVueTs(
-	{
-		name: 'app/files-to-lint',
-		files: ['**/*.{vue,ts}'],
-	},
+  { name: 'app/files-to-lint', files: ['**/*.{vue,ts}'] },
 
-	globalIgnores(['**/dist/**']),
+  globalIgnores(['**/dist/**']),
 
-	...pluginVue.configs['flat/essential'],
-	vueTsConfigs.recommended,
+  ...pluginVue.configs['flat/essential'],
+  vueTsConfigs.recommended,
 )
