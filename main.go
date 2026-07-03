@@ -17,7 +17,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/net/publicsuffix"
 )
 
 type LogType int
@@ -68,7 +67,7 @@ func init() {
 	flag.StringVar(&webui, "webui", ":2386", "WebUI address")
 	flag.Parse()
 
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	jar, err := cookiejar.New(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
