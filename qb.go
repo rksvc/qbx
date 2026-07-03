@@ -57,12 +57,16 @@ func checkAPIVersion() (bool, int) {
 		resetAPIVer()
 		return false, http.StatusOK
 	}
-	ver := string(b)
 
 	mu.Lock()
 	defer mu.Unlock()
-	apiVer.Version = ver
-	apiVer.Supported = !semver.MustParse(ver).LessThan(semver.MustParse("2.3"))
+	apiVer.Version = string(b)
+	ver, err := semver.NewVersion(apiVer.Version)
+	if err != nil {
+		log.Print(err)
+		return false, http.StatusOK
+	}
+	apiVer.Supported = !ver.LessThan(semver.MustParse("2.3"))
 	if !apiVer.Supported {
 		log.Print("qBittorrent API >= v2.3 required")
 		return false, http.StatusOK
