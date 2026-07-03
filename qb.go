@@ -11,7 +11,7 @@ import (
 )
 
 func ok(resp *http.Response) bool {
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode < 400 {
 		return true
 	}
 	log.Printf("%s %s: %s", resp.Request.Method, resp.Request.URL, resp.Status)
