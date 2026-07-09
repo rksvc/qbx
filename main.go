@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -12,11 +12,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"go.etcd.io/bbolt"
 )
 
 type LogType int
@@ -53,7 +54,7 @@ var (
 	}
 	stats = make(map[LogType]int64)
 
-	db     *sql.DB
+	db     *bbolt.DB
 	client *http.Client
 )
 
@@ -83,19 +84,18 @@ func init() {
 	if err = os.MkdirAll(conf, 0755); err != nil {
 		log.Fatal(err)
 	}
-	db, err = sql.Open("sqlite3", path.Join(conf, "qbx.db"))
+	db, err = bbolt.Open(path.Join(conf, "qbx.db"), 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = db.Exec(`
-		create table if not exists logs (
-			id integer primary key autoincrement,
-			type integer,
-			date datetime,
-			peer text,
-			client text
-		);
-	`)
+	err = db.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("logs"))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte("stats"))
+		return err
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,10 +111,37 @@ func init() {
 }
 
 func xlog(typ LogType, peer, client string) {
-	_, err := db.Exec(`
-		insert into logs (type, date, peer, client)
-		values (?, ?, ?, ?)
-	`, typ, time.Now().UTC(), peer, client)
+	err := db.Update(func(tx *bbolt.Tx) error {
+		v := map[string]any{"t": typ}
+		if peer != "" {
+			v["p"] = peer
+		}
+		if client != "" {
+			v["c"] = client
+		}
+		value, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		logs := tx.Bucket([]byte("logs"))
+		key := []byte(time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z07:00"))
+		err = logs.Put(key, value)
+		if err != nil {
+			return err
+		}
+
+		stats := tx.Bucket([]byte("stats"))
+		key = []byte(strconv.Itoa(int(typ)))
+		value = stats.Get(key)
+		var count int64
+		if value != nil {
+			count, err = strconv.ParseInt(string(value), 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+		return stats.Put(key, []byte(strconv.FormatInt(count+1, 10)))
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

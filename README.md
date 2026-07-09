@@ -20,7 +20,7 @@ Usage of qbx:
 
 ```sh
 pnpm install
-pnpm bundle
+pnpm build
 go build -ldflags='-s -w' -trimpath
 ```
 

@@ -5,11 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "bundle": "vue-tsc --build && vite build",
+    "build": "vue-tsc --build && vite build",
     "preview": "vite preview",
     "fmt": "oxfmt",
-    "lint": "eslint .",
-    "build_windows": "CC='zig cc -target x86_64-windows-gnu' CGO_ENABLED=1 GOOS=windows go build -ldflags='-s -w' -trimpath"
+    "lint": "eslint ."
   },
   "dependencies": {
     "vue": "^3.5.33"

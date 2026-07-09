@@ -16,7 +16,7 @@ const reasons = [
   { name: 'BanSubnetTooManyPeers', color: 'bg-sky-500/80', explanation: 'Ban subnets with more than 4 peers' },
 ]
 
-type Log = { id: number; type: number; date: string; peer: string; client: string }
+type Log = { d: string; t: number; p?: string; c?: string }
 
 const apiVer = ref({ version: '', supported: false })
 const stats = ref<Record<number, { session: number; all: number }>>({})
@@ -42,12 +42,12 @@ async function loadMoreLogs() {
   if (loadingLogs.value) return
   loadingLogs.value = true
   try {
-    const id = logs.value.at(-1)?.id
-    if (id == null) {
+    const date = logs.value.at(-1)?.d
+    if (date == null) {
       hasMoreLogs.value = false
       return
     }
-    const resp = await fetch(`/api/logs?before=${id}`)
+    const resp = await fetch(`/api/logs?before=${date}`)
     const json: Log[] = await resp.json()
     hasMoreLogs.value = json.length > 0
     logs.value = [...logs.value, ...json]
@@ -118,7 +118,11 @@ async function loadMoreLogs() {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="{ id, type, date, peer, client } in logs" :key="id" class="hover:bg-current/10">
+        <tr
+          v-for="{ d: date, t: type, p: peer, c: client } in logs"
+          :key="date"
+          class="hover:bg-current/10"
+        >
           <td class="border-t border-r border-current/30 p-2 text-center">
             {{ new Date(date).toLocaleString() }}
           </td>
@@ -131,8 +135,8 @@ async function loadMoreLogs() {
               {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
             </span>
           </td>
-          <td class="border-t border-r border-current/30 p-2">{{ peer }}</td>
-          <td class="border-t border-current/30 p-2">{{ client }}</td>
+          <td class="border-t border-r border-current/30 p-2">{{ peer ?? '' }}</td>
+          <td class="border-t border-current/30 p-2">{{ client ?? '' }}</td>
         </tr>
         <tr v-if="hasMoreLogs">
           <td

@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"strconv"
+
+	"go.etcd.io/bbolt"
 )
 
 func handleAPIVersion(w http.ResponseWriter, r *http.Request) {
@@ -27,57 +28,69 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	}
 	mu.Unlock()
 
-	for typ := BanInBlockedSubnet; typ <= BanSubnetTooManyPeers; typ++ {
-		s := resp[typ]
-		err := db.QueryRow(`select count(*) from logs where type = ?`, typ).Scan(&s.All)
-		if err != nil {
-			log.Print(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+	err := db.View(func(tx *bbolt.Tx) error {
+		stats := tx.Bucket([]byte("stats"))
+		for typ := BanInBlockedSubnet; typ <= BanSubnetTooManyPeers; typ++ {
+			value := stats.Get([]byte(strconv.Itoa(int(typ))))
+			if value != nil {
+				s := resp[typ]
+				var err error
+				s.All, err = strconv.ParseInt(string(value), 10, 64)
+				if err != nil {
+					return err
+				}
+				resp[typ] = s
+			}
 		}
-		resp[typ] = s
-	}
-	json.NewEncoder(w).Encode(resp)
-}
-
-func handleLogs(w http.ResponseWriter, r *http.Request) {
-	predicate := "1"
-	if before := r.URL.Query().Get("before"); before != "" {
-		predicate = "id < " + before
-	}
-
-	type Log struct {
-		ID     int64     `json:"id"`
-		Type   int       `json:"type"`
-		Date   time.Time `json:"date"`
-		Peer   string    `json:"peer"`
-		Client string    `json:"client"`
-	}
-	logs := make([]Log, 0)
-
-	rows, err := db.Query(fmt.Sprintf(`
-		select id, type, date, peer, client
-		from logs
-		where %s
-		order by id desc
-		limit ?
-	`, predicate), 15)
+		return nil
+	})
 	if err != nil {
 		log.Print(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	for rows.Next() {
-		var lg Log
-		err = rows.Scan(&lg.ID, &lg.Type, &lg.Date, &lg.Peer, &lg.Client)
-		if err != nil {
-			log.Print(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		logs = append(logs, lg)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func handleLogs(w http.ResponseWriter, r *http.Request) {
+	type Log struct {
+		Date   string `json:"d"`
+		Type   int    `json:"t"`
+		Peer   string `json:"p,omitempty"`
+		Client string `json:"c,omitempty"`
 	}
-	if err = rows.Err(); err != nil {
+	logs := make([]Log, 0)
+
+	err := db.View(func(tx *bbolt.Tx) error {
+		c := tx.Bucket([]byte("logs")).Cursor()
+		var key, value []byte
+		if before := r.URL.Query().Get("before"); before == "" {
+			key, value = c.Last()
+		} else {
+			key, _ = c.Seek([]byte(before))
+			if key != nil {
+				key, value = c.Prev()
+			}
+		}
+
+		for range 15 {
+			if key == nil {
+				break
+			}
+
+			var log Log
+			err := json.Unmarshal(value, &log)
+			if err != nil {
+				return err
+			}
+			log.Date = string(key)
+			logs = append(logs, log)
+
+			key, value = c.Prev()
+		}
+		return nil
+	})
+	if err != nil {
 		log.Print(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
