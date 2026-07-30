@@ -203,7 +203,7 @@ fetch('/api/logs')
       <span class="text-current/70">{{ date }}</span>
       <div class="mt-1 h-px bg-linear-to-r from-current/0 via-current/30 to-current/0"></div>
     </div>
-    <div class="m-3 text-sm">
+    <div class="m-4 mt-2 text-sm">
       <div
         class="flex items-center gap-1.5 rounded-lg from-current/6 via-current/6 to-current/0 p-0.75 px-1.5 whitespace-nowrap hover:bg-linear-to-r"
         v-for="{ d: date, t: type, p: peer, c: client } in group"
