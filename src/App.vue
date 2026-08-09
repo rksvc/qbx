@@ -111,6 +111,7 @@ onMounted(
   () =>
     (observer = new IntersectionObserver(
       ([entry]) => (isIntersecting.value = entry?.isIntersecting ?? false),
+      { rootMargin: '200px' },
     )),
 )
 onUnmounted(() => observer?.disconnect())
