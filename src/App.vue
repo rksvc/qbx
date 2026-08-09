@@ -239,13 +239,5 @@ fetch('/api/logs')
 </template>
 
 <style>
-:root {
-  color-scheme: light dark;
-}
-@media (orientation: landscape) {
-  body {
-    justify-self: center;
-    width: 100vh;
-  }
-}
+@import './style.css';
 </style>
