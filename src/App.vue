@@ -8,12 +8,14 @@ const reasons = [
     color: 'text-slate-500/80',
     bg: 'bg-slate-500/80',
     bgLighter: 'bg-slate-500/20',
+    bgLinear: 'from-slate-500/50',
   },
   {
     name: 'BanInBlockedSubnet',
     color: 'text-red-500/80',
     bg: 'bg-red-500/80',
     bgLighter: 'bg-red-500/20',
+    bgLinear: 'from-red-500/50',
     explanation: 'Ban peers in banned subnets',
   },
   {
@@ -21,6 +23,7 @@ const reasons = [
     color: 'text-orange-500/80',
     bg: 'bg-orange-500/80',
     bgLighter: 'bg-orange-500/20',
+    bgLinear: 'from-orange-500/50',
     explanation: 'Ban peers with weird client names',
   },
   {
@@ -28,6 +31,7 @@ const reasons = [
     color: 'text-amber-500/80',
     bg: 'bg-amber-500/80',
     bgLighter: 'bg-amber-500/20',
+    bgLinear: 'from-amber-500/50',
     explanation: 'Ban peers with well-known leecher client names',
   },
   {
@@ -35,6 +39,7 @@ const reasons = [
     color: 'text-yellow-500/80',
     bg: 'bg-yellow-500/80',
     bgLighter: 'bg-yellow-500/20',
+    bgLinear: 'from-yellow-500/50',
     explanation: 'Ban peers with obsolete client names',
   },
   {
@@ -42,6 +47,7 @@ const reasons = [
     color: 'text-lime-500/80',
     bg: 'bg-lime-500/80',
     bgLighter: 'bg-lime-500/20',
+    bgLinear: 'from-lime-500/50',
     explanation: 'Ban peers with uploaded data more than torrent total size',
   },
   {
@@ -49,6 +55,7 @@ const reasons = [
     color: 'text-green-500/80',
     bg: 'bg-green-500/80',
     bgLighter: 'bg-green-500/20',
+    bgLinear: 'from-green-500/50',
     explanation: 'Ban peers with uploaded data exceeding 10 MB and no progress',
   },
   {
@@ -56,6 +63,7 @@ const reasons = [
     color: 'text-emerald-500/80',
     bg: 'bg-emerald-500/80',
     bgLighter: 'bg-emerald-500/20',
+    bgLinear: 'from-emerald-500/50',
     explanation: 'Ban peers with shrunk progress',
   },
   {
@@ -63,6 +71,7 @@ const reasons = [
     color: 'text-teal-500/80',
     bg: 'bg-teal-500/80',
     bgLighter: 'bg-teal-500/20',
+    bgLinear: 'from-teal-500/50',
     explanation: 'Ban peers with uploaded data more than increased progress',
   },
   {
@@ -70,6 +79,7 @@ const reasons = [
     color: 'text-cyan-500/80',
     bg: 'bg-cyan-500/80',
     bgLighter: 'bg-cyan-500/20',
+    bgLinear: 'from-cyan-500/50',
     explanation: 'Ban subnets with more than 4 banned peers',
   },
   {
@@ -77,6 +87,7 @@ const reasons = [
     color: 'text-sky-500/80',
     bg: 'bg-sky-500/80',
     bgLighter: 'bg-sky-500/20',
+    bgLinear: 'from-sky-500/50',
     explanation: 'Ban subnets with more than 4 peers',
   },
 ]
@@ -206,29 +217,36 @@ fetch('/api/logs')
     </div>
     <div class="m-4 mt-2 text-sm">
       <div
-        class="flex items-center gap-1.5 rounded-lg from-current/6 via-current/6 to-current/0 p-0.75 px-1.5 whitespace-nowrap hover:bg-linear-to-r"
         v-for="{ d: date, t: type, p: peer, c: client } in group"
         :key="date"
+        class="rounded-full border-2 border-transparent to-transparent bg-clip-border bg-origin-border hover:bg-linear-to-r"
+        :class="reasons[type]?.bgLinear"
       >
-        <span class="text-current/70">
-          {{ new Date(date).toLocaleTimeString() }}
-        </span>
-        <span
-          class="rounded-lg p-1 px-2 text-xs font-bold"
-          :class="`${reasons[type]?.color} ${reasons[type]?.bgLighter}`"
-          :title="reasons[type]?.explanation"
+        <div
+          class="flex items-center gap-1.5 rounded-full bg-[canvas] p-0.5 px-1.5 whitespace-nowrap"
         >
-          {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
-        </span>
-        <span v-if="peer">
-          <span class="text-current/50">peer=</span>
-          <span class="text-current/80">{{ peer.match(peerPat)?.[1] }}</span>
-          <span class="text-current/50">{{ peer.match(peerPat)?.[2] ?? '' }}</span>
-        </span>
-        <span v-if="client">
-          <span class="text-current/50">client=</span>
-          <span class="text-current/80">{{ client }}</span>
-        </span>
+          <span class="text-current/70">
+            {{ new Date(date).toLocaleTimeString() }}
+          </span>
+          <span
+            class="rounded-full p-0.75 px-2 text-xs font-bold"
+            :class="`${reasons[type]?.color} ${reasons[type]?.bgLighter}`"
+            :title="reasons[type]?.explanation"
+          >
+            {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
+          </span>
+          <span v-if="peer">
+            <span class="text-current/50 italic">peer=</span>
+            <code class="rounded-md bg-current/7 p-0.5 px-1">
+              <span class="text-current/80">{{ peer.match(peerPat)?.[1] }}</span>
+              <span class="text-current/50">{{ peer.match(peerPat)?.[2] ?? '' }}</span>
+            </code>
+          </span>
+          <span v-if="client">
+            <span class="text-current/50 italic">client=</span>
+            <code class="rounded-md bg-current/7 p-0.5 px-1 text-current/80">{{ client }}</code>
+          </span>
+        </div>
       </div>
     </div>
   </div>
