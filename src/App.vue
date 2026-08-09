@@ -233,7 +233,7 @@ fetch('/api/logs')
   </div>
   <div
     v-if="loading || hasMore"
-    class="mb-3 h-4 w-4 animate-spin justify-self-center rounded-full border-3 border-current/20 border-t-current/70"
+    class="mb-5 h-4 w-4 animate-spin justify-self-center rounded-full border-3 border-current/20 border-t-current/70"
     ref="sentry"
   ></div>
 </template>
