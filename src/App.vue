@@ -219,7 +219,7 @@ fetch('/api/logs')
       <div
         v-for="{ d: date, t: type, p: peer, c: client } in group"
         :key="date"
-        class="rounded-full border-2 border-transparent to-transparent bg-clip-border bg-origin-border hover:bg-linear-to-r"
+        class="rounded-full border-2 border-transparent via-current/7 to-transparent bg-clip-border bg-origin-border hover:bg-linear-to-r"
         :class="reasons[type]?.bgLinear"
       >
         <div
