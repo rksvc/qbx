@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/fs"
 	"iter"
 	"log"
 	"net/http"
@@ -18,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"go.etcd.io/bbolt"
 )
 
@@ -123,12 +124,17 @@ func init() {
 	}
 
 	go func() {
-		dist, _ := fs.Sub(dist, "dist")
-		http.HandleFunc("/api/apiVersion", handleAPIVersion)
-		http.HandleFunc("/api/stats", handleStats)
-		http.HandleFunc("/api/logs", handleLogs)
-		http.Handle("/", http.FileServer(http.FS(dist)))
-		log.Fatal(http.ListenAndServe(webui, nil))
+		e := echo.New()
+		e.Use(middleware.Gzip())
+		e.GET("/api/apiVersion", handleAPIVersion)
+		e.GET("/api/stats", handleStats)
+		e.GET("/api/logs", handleLogs)
+		e.StaticFS("/", echo.MustSubFS(dist, "dist"))
+		if err := e.Start(webui); err == nil {
+			os.Exit(0)
+		} else {
+			log.Fatal(err)
+		}
 	}()
 }
 

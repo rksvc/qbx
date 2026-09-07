@@ -6,16 +6,17 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/labstack/echo/v5"
 	"go.etcd.io/bbolt"
 )
 
-func handleAPIVersion(w http.ResponseWriter, r *http.Request) {
+func handleAPIVersion(c *echo.Context) error {
 	mu.Lock()
 	defer mu.Unlock()
-	json.NewEncoder(w).Encode(apiVer)
+	return c.JSON(http.StatusOK, apiVer)
 }
 
-func handleStats(w http.ResponseWriter, r *http.Request) {
+func handleStats(c *echo.Context) error {
 	resp := make(map[LogType]struct {
 		Session int64 `json:"session"`
 		All     int64 `json:"all"`
@@ -50,13 +51,12 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.NoContent(http.StatusInternalServerError)
 	}
-	json.NewEncoder(w).Encode(resp)
+	return c.JSON(http.StatusOK, resp)
 }
 
-func handleLogs(w http.ResponseWriter, r *http.Request) {
+func handleLogs(c *echo.Context) error {
 	type Log struct {
 		Date   string `json:"d"`
 		Type   int    `json:"t"`
@@ -66,14 +66,14 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	logs := make([]Log, 0)
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		c := tx.Bucket([]byte("logs")).Cursor()
+		cursor := tx.Bucket([]byte("logs")).Cursor()
 		var key, value []byte
-		if before := r.URL.Query().Get("before"); before == "" {
-			key, value = c.Last()
+		if before := c.QueryParam("before"); before == "" {
+			key, value = cursor.Last()
 		} else {
-			key, _ = c.Seek([]byte(before))
+			key, _ = cursor.Seek([]byte(before))
 			if key != nil {
-				key, value = c.Prev()
+				key, value = cursor.Prev()
 			}
 		}
 
@@ -90,15 +90,14 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 			log.Date = string(key)
 			logs = append(logs, log)
 
-			key, value = c.Prev()
+			key, value = cursor.Prev()
 		}
 		return nil
 	})
 	if err != nil {
 		log.Print(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	json.NewEncoder(w).Encode(logs)
+	return c.JSON(http.StatusOK, logs)
 }
