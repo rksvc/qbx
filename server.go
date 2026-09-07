@@ -20,29 +20,33 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 		Session int64 `json:"session"`
 		All     int64 `json:"all"`
 	})
-	mu.Lock()
-	for typ, cnt := range stats {
-		s := resp[typ]
-		s.Session = cnt
-		resp[typ] = s
-	}
-	mu.Unlock()
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		stats := tx.Bucket([]byte("stats"))
-		for typ := BanInBlockedSubnet; typ <= BanSubnetTooManyPeers; typ++ {
-			value := stats.Get([]byte(strconv.Itoa(int(typ))))
-			if value != nil {
-				s := resp[typ]
-				var err error
-				s.All, err = strconv.ParseInt(string(value), 10, 64)
-				if err != nil {
-					return err
+		getStats := func(bucket string, session bool) error {
+			stats := tx.Bucket([]byte(bucket))
+			for t := range logTypes() {
+				value := stats.Get([]byte(strconv.Itoa(int(t))))
+				if value != nil {
+					s := resp[t]
+					var err error
+					if session {
+						s.Session, err = strconv.ParseInt(string(value), 10, 64)
+					} else {
+						s.All, err = strconv.ParseInt(string(value), 10, 64)
+					}
+					if err != nil {
+						return err
+					}
+					resp[t] = s
 				}
-				resp[typ] = s
 			}
+			return nil
 		}
-		return nil
+		err := getStats(BUCKET_STATS, false)
+		if err != nil {
+			return err
+		}
+		return getStats(BUCKET_SESSION, true)
 	})
 	if err != nil {
 		log.Print(err)

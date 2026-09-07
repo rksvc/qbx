@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
+	"iter"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -36,6 +37,16 @@ const (
 	BanSubnetTooManyPeers
 )
 
+func logTypes() iter.Seq[LogType] {
+	return func(yield func(LogType) bool) {
+		for t := BanInBlockedSubnet; t <= BanSubnetTooManyPeers; t++ {
+			if !yield(t) {
+				return
+			}
+		}
+	}
+}
+
 //go:embed dist
 var dist embed.FS
 
@@ -52,10 +63,17 @@ var (
 		Version   string `json:"version"`
 		Supported bool   `json:"supported"`
 	}
-	stats = make(map[LogType]int64)
 
 	db     *bbolt.DB
 	client *http.Client
+)
+
+const (
+	BUCKET_LOGS    = "logs"
+	BUCKET_STATS   = "stats"
+	BUCKET_SESSION = "session"
+
+	KEY_LAST_RESET = "last_reset"
 )
 
 func init() {
@@ -89,11 +107,15 @@ func init() {
 		log.Fatal(err)
 	}
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte("logs"))
+		_, err := tx.CreateBucketIfNotExists([]byte(BUCKET_LOGS))
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte("stats"))
+		_, err = tx.CreateBucketIfNotExists([]byte(BUCKET_STATS))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte(BUCKET_SESSION))
 		return err
 	})
 	if err != nil {
@@ -130,24 +152,28 @@ func xlog(typ LogType, peer, client string) {
 			return err
 		}
 
-		stats := tx.Bucket([]byte("stats"))
-		key = []byte(strconv.Itoa(int(typ)))
-		value = stats.Get(key)
-		var count int64
-		if value != nil {
-			count, err = strconv.ParseInt(string(value), 10, 64)
-			if err != nil {
-				return err
+		updateStats := func(bucket string) error {
+			stats := tx.Bucket([]byte(bucket))
+			key := []byte(strconv.Itoa(int(typ)))
+			value := stats.Get(key)
+			var count int64
+			if value != nil {
+				count, err = strconv.ParseInt(string(value), 10, 64)
+				if err != nil {
+					return err
+				}
 			}
+			return stats.Put(key, []byte(strconv.FormatInt(count+1, 10)))
 		}
-		return stats.Put(key, []byte(strconv.FormatInt(count+1, 10)))
+		err = updateStats(BUCKET_STATS)
+		if err != nil {
+			return err
+		}
+		return updateStats(BUCKET_SESSION)
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	mu.Lock()
-	stats[typ]++
-	mu.Unlock()
 }
 
 func main() {
@@ -166,6 +192,21 @@ func main() {
 	)
 
 	var lastReset time.Time
+	err := db.View(func(tx *bbolt.Tx) error {
+		session := tx.Bucket([]byte(BUCKET_SESSION))
+		v := session.Get([]byte(KEY_LAST_RESET))
+		if v != nil {
+			msec, err := strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+			lastReset = time.UnixMilli(msec)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	for ticker := time.NewTicker(10 * time.Second); true; <-ticker.C {
 		ok, statusCode := checkAPIVersion()
 		if statusCode == http.StatusForbidden && login() {
@@ -181,7 +222,19 @@ func main() {
 			clear(torrents)
 			clear(bannedSubnets)
 			clear(bannedIPs)
-			clear(stats)
+			err := db.Update(func(tx *bbolt.Tx) error {
+				session := tx.Bucket([]byte(BUCKET_SESSION))
+				for t := range logTypes() {
+					if err := session.Delete([]byte(strconv.Itoa(int(t)))); err != nil {
+						return err
+					}
+				}
+				lastReset := strconv.FormatInt(lastReset.UnixMilli(), 10)
+				return session.Put([]byte(KEY_LAST_RESET), []byte(lastReset))
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
 			clearBannedIPs()
 		}
 
