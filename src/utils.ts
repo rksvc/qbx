@@ -85,3 +85,13 @@ export async function xfetch(url: string) {
     else throw new Error(`${resp.status} ${resp.statusText}`)
   return await resp.json()
 }
+
+export function formatBytes(n: number) {
+  return n < 1024
+    ? `${n} B`
+    : n < Math.pow(1024, 2)
+      ? `${(n / 1024).toFixed(2)} KB`
+      : n < Math.pow(1024, 3)
+        ? `${(n / Math.pow(1024, 2)).toFixed(2)} MB`
+        : `${(n / Math.pow(1024, 3)).toFixed(2)} GB`
+}

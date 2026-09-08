@@ -56,10 +56,12 @@ func handleStats(c *echo.Context) error {
 
 func handleLogs(c *echo.Context) error {
 	type Log struct {
-		Date   string `json:"d"`
-		Type   int    `json:"t"`
-		Peer   string `json:"p,omitempty"`
-		Client string `json:"c,omitempty"`
+		Date       string `json:"date"`
+		Type       int    `json:"t"`
+		Peer       string `json:"p,omitempty"`
+		Client     string `json:"c,omitempty"`
+		Downloaded int64  `json:"d,omitempty"`
+		Uploaded   int64  `json:"u,omitempty"`
 	}
 	logs := make([]Log, 0)
 

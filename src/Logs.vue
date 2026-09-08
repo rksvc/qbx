@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
-import { reasons, xfetch } from './utils'
+import { formatBytes, reasons, xfetch } from './utils'
 
-type Log = { d: string; t: number; p?: string; c?: string }
+type Log = { date: string; t: number; p?: string; c?: string; d?: number; u?: number }
 const peerPat = /(.+?)(:\d+)?$/
 
 const logs = ref<Log[]>(await xfetch('/api/logs'))
@@ -11,7 +11,7 @@ const hasMore = ref(logs.value.length > 0)
 const logGroups = computed(() => {
   const groups = new Map<string, Log[]>()
   for (const log of logs.value) {
-    const date = new Date(log.d).toLocaleDateString()
+    const date = new Date(log.date).toLocaleDateString()
     let group = groups.get(date)
     if (!group) groups.set(date, (group = []))
     group.push(log)
@@ -38,7 +38,7 @@ watch(sentry, (value, oldValue) => {
 watch([isIntersecting, hasMore], async () => {
   if (isIntersecting.value && !loading.value && hasMore.value) {
     loading.value = true
-    const date = logs.value.at(-1)?.d
+    const date = logs.value.at(-1)?.date
     if (date == null) {
       loading.value = false
       return
@@ -59,7 +59,7 @@ watch([isIntersecting, hasMore], async () => {
     </div>
     <div class="m-4 mt-2 text-sm">
       <div
-        v-for="{ d: date, t: type, p: peer, c: client } in group"
+        v-for="{ date, t: type, p: peer, c: client, d: downloaded, u: uploaded } in group"
         :key="date"
         class="flex items-center gap-1.5 p-0.75 px-1.5 whitespace-nowrap"
       >
@@ -73,6 +73,10 @@ watch([isIntersecting, hasMore], async () => {
         >
           {{ type === 0 ? 'ClearBannedIPs' : reasons[type]?.name }}
         </span>
+        <template v-if="type > 0 && type < 9">
+          <span class="text-xs text-green-500">↑ {{ formatBytes(uploaded ?? 0) }}</span>
+          <span class="text-xs text-red-500">↓ {{ formatBytes(downloaded ?? 0) }}</span>
+        </template>
         <span v-if="peer">
           <span class="text-current/50 italic">peer=</span>
           <code class="rounded-md bg-current/7 p-0.5 px-1">

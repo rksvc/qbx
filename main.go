@@ -138,7 +138,7 @@ func init() {
 	}()
 }
 
-func xlog(typ LogType, peer, client string) {
+func xlog(typ LogType, peer, client string, downloaded, uploaded int64) {
 	err := db.Update(func(tx *bbolt.Tx) error {
 		v := map[string]any{"t": typ}
 		if peer != "" {
@@ -146,6 +146,12 @@ func xlog(typ LogType, peer, client string) {
 		}
 		if client != "" {
 			v["c"] = client
+		}
+		if downloaded > 0 {
+			v["d"] = downloaded
+		}
+		if uploaded > 0 {
+			v["u"] = uploaded
 		}
 		value, err := json.Marshal(v)
 		if err != nil {
@@ -224,7 +230,7 @@ func main() {
 
 		if time.Since(lastReset).Hours() >= 24 {
 			lastReset = time.Now()
-			xlog(ClearBannedIPs, "", "")
+			xlog(ClearBannedIPs, "", "", 0, 0)
 			clear(torrents)
 			clear(bannedSubnets)
 			clear(bannedIPs)
@@ -285,13 +291,9 @@ func main() {
 				continue
 			}
 
-			var (
-				peerSubnets  = make(map[Subnet]map[Host]struct{})
-				peerToClient = make(map[string]string)
-			)
-
+			var peerSubnets = make(map[Subnet]map[Host]struct{})
 			var peers struct {
-				Peers map[string]struct {
+				Peers map[Host]struct {
 					Client     string  `json:"client"`
 					Downloaded int64   `json:"downloaded"`
 					Flags      string  `json:"flags"`
@@ -305,7 +307,7 @@ func main() {
 			for ip, peer := range peers.Peers {
 				var banPeer bool
 				ban := func(reason LogType) {
-					xlog(reason, ip, peer.Client)
+					xlog(reason, ip, peer.Client, peer.Downloaded, peer.Uploaded)
 					banPeer = true
 				}
 
@@ -327,11 +329,10 @@ func main() {
 				} else {
 					hosts, ok := peerSubnets[subnet]
 					if !ok {
-						hosts = make(map[string]struct{})
+						hosts = make(map[Host]struct{})
 						peerSubnets[subnet] = hosts
 					}
 					hosts[ip] = struct{}{}
-					peerToClient[ip] = peer.Client
 				}
 
 				if !banPeer {
@@ -394,7 +395,7 @@ func main() {
 							if subnet[0] == '[' {
 								suffix = "]"
 							}
-							xlog(BanSubnetTooManyPeersBanned, fmt.Sprintf("%s*%s", subnet, suffix), "")
+							xlog(BanSubnetTooManyPeersBanned, fmt.Sprintf("%s*%s", subnet, suffix), "", 0, 0)
 							bannedSubnets[subnet] = struct{}{}
 							delete(bannedIPs, subnet)
 							delete(peerSubnets, subnet)
@@ -409,10 +410,11 @@ func main() {
 					if subnet[0] == '[' {
 						suffix = "]"
 					}
-					xlog(BanSubnetTooManyPeers, fmt.Sprintf("%s*%s", subnet, suffix), "")
+					xlog(BanSubnetTooManyPeers, fmt.Sprintf("%s*%s", subnet, suffix), "", 0, 0)
 					bannedSubnets[subnet] = struct{}{}
 					for ip := range ips {
-						xlog(BanInBlockedSubnet, ip, peerToClient[ip])
+						peer := peers.Peers[ip]
+						xlog(BanInBlockedSubnet, ip, peer.Client, peer.Downloaded, peer.Uploaded)
 						bannedPeers = append(bannedPeers, ip)
 					}
 				}
