@@ -69,12 +69,14 @@ var (
 	client *http.Client
 )
 
-const (
-	BUCKET_LOGS    = "logs"
-	BUCKET_STATS   = "stats"
-	BUCKET_SESSION = "session"
+var (
+	BUCKET_LOGS    = []byte("logs")
+	BUCKET_STATS   = []byte("stats")
+	BUCKET_SESSION = []byte("session")
 
-	KEY_LAST_RESET = "last_reset"
+	KEY_LAST_RESET     = []byte("last_reset")
+	KEY_BANNED_SUBNETS = []byte("banned_subnets")
+	KEY_BANNED_IPS     = []byte("banned_ips")
 )
 
 func init() {
@@ -108,15 +110,15 @@ func init() {
 		log.Fatal(err)
 	}
 	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(BUCKET_LOGS))
+		_, err := tx.CreateBucketIfNotExists(BUCKET_LOGS)
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte(BUCKET_STATS))
+		_, err = tx.CreateBucketIfNotExists(BUCKET_STATS)
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte(BUCKET_SESSION))
+		_, err = tx.CreateBucketIfNotExists(BUCKET_SESSION)
 		return err
 	})
 	if err != nil {
@@ -164,8 +166,8 @@ func xlog(typ LogType, peer, client string, downloaded, uploaded int64) {
 			return err
 		}
 
-		updateStats := func(bucket string) error {
-			stats := tx.Bucket([]byte(bucket))
+		updateStats := func(bucket []byte) error {
+			stats := tx.Bucket(bucket)
 			key := []byte(strconv.Itoa(int(typ)))
 			value := stats.Get(key)
 			var count int64
@@ -205,14 +207,21 @@ func main() {
 
 	var lastReset time.Time
 	err := db.View(func(tx *bbolt.Tx) error {
-		session := tx.Bucket([]byte(BUCKET_SESSION))
-		v := session.Get([]byte(KEY_LAST_RESET))
-		if v != nil {
+		session := tx.Bucket(BUCKET_SESSION)
+		if v := session.Get(KEY_LAST_RESET); v != nil {
 			msec, err := strconv.ParseInt(string(v), 10, 64)
 			if err != nil {
 				return err
 			}
 			lastReset = time.UnixMilli(msec)
+		}
+		if v := session.Get(KEY_BANNED_SUBNETS); v != nil {
+			if err := json.Unmarshal(v, &bannedSubnets); err != nil {
+				return err
+			}
+		}
+		if v := session.Get(KEY_BANNED_IPS); v != nil {
+			return json.Unmarshal(v, &bannedIPs)
 		}
 		return nil
 	})
@@ -235,14 +244,14 @@ func main() {
 			clear(bannedSubnets)
 			clear(bannedIPs)
 			err := db.Update(func(tx *bbolt.Tx) error {
-				session := tx.Bucket([]byte(BUCKET_SESSION))
+				session := tx.Bucket(BUCKET_SESSION)
 				for t := range logTypes() {
 					if err := session.Delete([]byte(strconv.Itoa(int(t)))); err != nil {
 						return err
 					}
 				}
 				lastReset := strconv.FormatInt(lastReset.UnixMilli(), 10)
-				return session.Put([]byte(KEY_LAST_RESET), []byte(lastReset))
+				return session.Put(KEY_LAST_RESET, []byte(lastReset))
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -423,6 +432,21 @@ func main() {
 
 		if len(bannedPeers) > 0 {
 			banPeers(strings.Join(bannedPeers, "|"))
+			err := db.Update(func(tx *bbolt.Tx) error {
+				session := tx.Bucket(BUCKET_SESSION)
+				if v, err := json.Marshal(bannedSubnets); err != nil {
+					return err
+				} else if err := session.Put(KEY_BANNED_SUBNETS, v); err != nil {
+					return err
+				} else if v, err := json.Marshal(bannedIPs); err != nil {
+					return err
+				} else {
+					return session.Put(KEY_BANNED_IPS, v)
+				}
+			})
+			if err != nil {
+				log.Print(err)
+			}
 		}
 	}
 }

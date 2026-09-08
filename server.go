@@ -22,8 +22,8 @@ func handleStats(c *echo.Context) error {
 	})
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		getStats := func(bucket string, session bool) error {
-			stats := tx.Bucket([]byte(bucket))
+		getStats := func(bucket []byte, session bool) error {
+			stats := tx.Bucket(bucket)
 			for t := range logTypes() {
 				value := stats.Get([]byte(strconv.Itoa(int(t))))
 				if value != nil {
