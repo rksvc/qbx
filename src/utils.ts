@@ -87,11 +87,11 @@ export async function xfetch(url: string) {
 }
 
 export function formatBytes(n: number) {
-  return n < 1024
-    ? `${n} B`
-    : n < Math.pow(1024, 2)
-      ? `${(n / 1024).toFixed(2)} KB`
-      : n < Math.pow(1024, 3)
-        ? `${(n / Math.pow(1024, 2)).toFixed(2)} MB`
-        : `${(n / Math.pow(1024, 3)).toFixed(2)} GB`
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i++
+  }
+  return `${n.toFixed(1)} ${units[i]}`
 }
