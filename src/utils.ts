@@ -93,5 +93,5 @@ export function formatBytes(n: number) {
     n /= 1024
     i++
   }
-  return `${n.toFixed(1)} ${units[i]}`
+  return `${n && n.toFixed(1)} ${units[i]}`
 }
