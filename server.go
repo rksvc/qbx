@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -50,8 +49,7 @@ func handleStats(c *echo.Context) error {
 		return getStats(BUCKET_SESSION, true)
 	})
 	if err != nil {
-		log.Print(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -95,8 +93,7 @@ func handleLogs(c *echo.Context) error {
 		return nil
 	})
 	if err != nil {
-		log.Print(err)
-		return c.NoContent(http.StatusInternalServerError)
+		return c.JSON(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, logs)
