@@ -67,7 +67,7 @@ watch([isIntersecting, hasMore], async () => {
           {{ new Date(date).toLocaleTimeString() }}
         </span>
         <span
-          class="rounded-full p-0.75 px-2 text-xs font-bold"
+          class="rounded-full p-0.5 px-1.75 text-xs font-medium outline"
           :class="`${reasons[type]?.color} ${reasons[type]?.bgLighter}`"
           :title="reasons[type]?.explanation"
         >
