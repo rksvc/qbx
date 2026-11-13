@@ -190,6 +190,12 @@ func main() {
 						return err
 					}
 				}
+				if err := put(session, KEY_BANNED_SUBNETS, bannedSubnets); err != nil {
+					return err
+				}
+				if err := put(session, KEY_BANNED_IPS, bannedIPs); err != nil {
+					return err
+				}
 				return put(session, KEY_LAST_RESET, lastReset.UnixMilli())
 			})
 			if err != nil {
