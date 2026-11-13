@@ -386,7 +386,7 @@ func main() {
 				return put(session, KEY_BANNED_IPS, bannedIPs)
 			})
 			if err != nil {
-				log.Print(err)
+				log.Fatal(err)
 			}
 		}
 	}
