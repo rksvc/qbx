@@ -70,7 +70,7 @@ func init() {
 	flag.StringVar(&addr, "addr", "http://127.0.0.1:8080", "qBittorrent WebUI address")
 	flag.StringVar(&username, "username", "", "qBittorrent WebUI username")
 	flag.StringVar(&password, "password", "", "qBittorrent WebUI password")
-	flag.StringVar(&webui, "webui", ":2386", "WebUI address")
+	flag.StringVar(&webui, "webui", "127.0.0.1:2386", "WebUI address")
 	flag.Parse()
 	if conf == "" {
 		dir, err := os.UserConfigDir()
