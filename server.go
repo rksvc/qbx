@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v5"
 	"go.etcd.io/bbolt"
@@ -22,31 +21,20 @@ func handleStats(c *echo.Context) error {
 	})
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		getStats := func(bucket []byte, session bool) error {
-			stats := tx.Bucket(bucket)
-			for t := range logTypes() {
-				value := stats.Get([]byte(strconv.Itoa(int(t))))
-				if value != nil {
-					s := resp[t]
-					var err error
-					if session {
-						s.Session, err = strconv.ParseInt(string(value), 10, 64)
-					} else {
-						s.All, err = strconv.ParseInt(string(value), 10, 64)
-					}
-					if err != nil {
-						return err
-					}
-					resp[t] = s
-				}
+		stats := tx.Bucket(BUCKET_STATS)
+		session := tx.Bucket(BUCKET_SESSION)
+		for key := range banReasons() {
+			var err error
+			s := resp[key]
+			if s.All, err = load(stats, key); err != nil {
+				return err
 			}
-			return nil
+			if s.Session, err = load(session, key); err != nil {
+				return err
+			}
+			resp[key] = s
 		}
-		err := getStats(BUCKET_STATS, false)
-		if err != nil {
-			return err
-		}
-		return getStats(BUCKET_SESSION, true)
+		return nil
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err.Error())
@@ -66,7 +54,7 @@ func handleLogs(c *echo.Context) error {
 	logs := make([]Log, 0)
 
 	err := db.View(func(tx *bbolt.Tx) error {
-		cursor := tx.Bucket([]byte("logs")).Cursor()
+		cursor := tx.Bucket(BUCKET_LOGS).Cursor()
 		var key, value []byte
 		if before := c.QueryParam("before"); before == "" {
 			key, value = cursor.Last()

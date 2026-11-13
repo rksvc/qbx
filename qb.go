@@ -5,10 +5,21 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 
 	"github.com/Masterminds/semver"
 )
+
+var client *http.Client
+
+func init() {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	client = &http.Client{Jar: jar}
+}
 
 func ok(resp *http.Response) bool {
 	if resp.StatusCode < 400 {
@@ -86,7 +97,7 @@ func clearBannedIPs() {
 	ok(resp)
 }
 
-func get(url string, value any) bool {
+func fetch(url string, value any) bool {
 	resp, err := client.Get(url)
 	if err != nil {
 		log.Print(err)

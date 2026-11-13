@@ -2,17 +2,14 @@ package main
 
 import (
 	"embed"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"iter"
 	"log"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -38,7 +35,7 @@ const (
 	BanSubnetTooManyPeers
 )
 
-func logTypes() iter.Seq[LogType] {
+func banReasons() iter.Seq[LogType] {
 	return func(yield func(LogType) bool) {
 		for t := BanInBlockedSubnet; t <= BanSubnetTooManyPeers; t++ {
 			if !yield(t) {
@@ -64,19 +61,6 @@ var (
 		Version   string `json:"version"`
 		Supported bool   `json:"supported"`
 	}
-
-	db     *bbolt.DB
-	client *http.Client
-)
-
-var (
-	BUCKET_LOGS    = []byte("logs")
-	BUCKET_STATS   = []byte("stats")
-	BUCKET_SESSION = []byte("session")
-
-	KEY_LAST_RESET     = []byte("last_reset")
-	KEY_BANNED_SUBNETS = []byte("banned_subnets")
-	KEY_BANNED_IPS     = []byte("banned_ips")
 )
 
 func init() {
@@ -88,13 +72,6 @@ func init() {
 	flag.StringVar(&password, "password", "", "qBittorrent WebUI password")
 	flag.StringVar(&webui, "webui", ":2386", "WebUI address")
 	flag.Parse()
-
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	client = &http.Client{Jar: jar}
-
 	if conf == "" {
 		dir, err := os.UserConfigDir()
 		if err != nil {
@@ -102,25 +79,11 @@ func init() {
 		}
 		conf = filepath.Join(dir, "qbx")
 	}
-	if err = os.MkdirAll(conf, 0755); err != nil {
-		log.Fatal(err)
-	}
-	db, err = bbolt.Open(path.Join(conf, "qbx.db"), 0600, nil)
+	err := os.MkdirAll(conf, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(BUCKET_LOGS)
-		if err != nil {
-			return err
-		}
-		_, err = tx.CreateBucketIfNotExists(BUCKET_STATS)
-		if err != nil {
-			return err
-		}
-		_, err = tx.CreateBucketIfNotExists(BUCKET_SESSION)
-		return err
-	})
+	err = initDB(path.Join(conf, "qbx.db"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,35 +118,16 @@ func xlog(typ LogType, peer, client string, downloaded, uploaded int64) {
 		if uploaded > 0 {
 			v["u"] = uploaded
 		}
-		value, err := json.Marshal(v)
-		if err != nil {
-			return err
-		}
-		logs := tx.Bucket([]byte("logs"))
-		key := []byte(time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z07:00"))
-		err = logs.Put(key, value)
-		if err != nil {
-			return err
-		}
 
-		updateStats := func(bucket []byte) error {
-			stats := tx.Bucket(bucket)
-			key := []byte(strconv.Itoa(int(typ)))
-			value := stats.Get(key)
-			var count int64
-			if value != nil {
-				count, err = strconv.ParseInt(string(value), 10, 64)
-				if err != nil {
-					return err
-				}
-			}
-			return stats.Put(key, []byte(strconv.FormatInt(count+1, 10)))
-		}
-		err = updateStats(BUCKET_STATS)
+		err := put(tx.Bucket(BUCKET_LOGS), time.Now(), v)
 		if err != nil {
 			return err
 		}
-		return updateStats(BUCKET_SESSION)
+		err = inc(tx.Bucket(BUCKET_STATS), typ)
+		if err != nil {
+			return err
+		}
+		return inc(tx.Bucket(BUCKET_SESSION), typ)
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -208,22 +152,18 @@ func main() {
 	var lastReset time.Time
 	err := db.View(func(tx *bbolt.Tx) error {
 		session := tx.Bucket(BUCKET_SESSION)
-		if v := session.Get(KEY_LAST_RESET); v != nil {
-			msec, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				return err
-			}
-			lastReset = time.UnixMilli(msec)
+		var msec int64
+		err := get(session, KEY_LAST_RESET, &msec)
+		if err != nil {
+			return err
 		}
-		if v := session.Get(KEY_BANNED_SUBNETS); v != nil {
-			if err := json.Unmarshal(v, &bannedSubnets); err != nil {
-				return err
-			}
+		lastReset = time.UnixMilli(msec)
+
+		err = get(session, KEY_BANNED_SUBNETS, &bannedSubnets)
+		if err != nil {
+			return err
 		}
-		if v := session.Get(KEY_BANNED_IPS); v != nil {
-			return json.Unmarshal(v, &bannedIPs)
-		}
-		return nil
+		return get(session, KEY_BANNED_IPS, &bannedIPs)
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -245,13 +185,12 @@ func main() {
 			clear(bannedIPs)
 			err := db.Update(func(tx *bbolt.Tx) error {
 				session := tx.Bucket(BUCKET_SESSION)
-				for t := range logTypes() {
-					if err := session.Delete([]byte(strconv.Itoa(int(t)))); err != nil {
+				for key := range banReasons() {
+					if err := del(session, key); err != nil {
 						return err
 					}
 				}
-				lastReset := strconv.FormatInt(lastReset.UnixMilli(), 10)
-				return session.Put(KEY_LAST_RESET, []byte(lastReset))
+				return put(session, KEY_LAST_RESET, lastReset.UnixMilli())
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -264,7 +203,7 @@ func main() {
 				TotalSize int64 `json:"total_size"`
 			} `json:"torrents"`
 		}
-		if !get(addr+"/api/v2/sync/maindata", &mainData) {
+		if !fetch(addr+"/api/v2/sync/maindata", &mainData) {
 			continue
 		}
 		var bannedPeers []string
@@ -278,7 +217,7 @@ func main() {
 				var trackers []struct {
 					Status int `json:"status"`
 				}
-				if !get(addr+"/api/v2/torrents/trackers?hash="+hash, &trackers) {
+				if !fetch(addr+"/api/v2/torrents/trackers?hash="+hash, &trackers) {
 					continue
 				}
 				// DHT is disabled and number of trackers <= 3
@@ -287,7 +226,7 @@ func main() {
 					var properties struct {
 						PieceSize int64 `json:"piece_size"`
 					}
-					if !get(addr+"/api/v2/torrents/properties?hash="+hash, &properties) {
+					if !fetch(addr+"/api/v2/torrents/properties?hash="+hash, &properties) {
 						continue
 					}
 					t.PieceSize = properties.PieceSize
@@ -310,7 +249,7 @@ func main() {
 					Uploaded   int64   `json:"uploaded"`
 				} `json:"peers"`
 			}
-			if !get(addr+"/api/v2/sync/torrentPeers?hash="+hash, &peers) {
+			if !fetch(addr+"/api/v2/sync/torrentPeers?hash="+hash, &peers) {
 				continue
 			}
 			for ip, peer := range peers.Peers {
@@ -434,15 +373,11 @@ func main() {
 			banPeers(strings.Join(bannedPeers, "|"))
 			err := db.Update(func(tx *bbolt.Tx) error {
 				session := tx.Bucket(BUCKET_SESSION)
-				if v, err := json.Marshal(bannedSubnets); err != nil {
+				err := put(session, KEY_BANNED_SUBNETS, bannedSubnets)
+				if err != nil {
 					return err
-				} else if err := session.Put(KEY_BANNED_SUBNETS, v); err != nil {
-					return err
-				} else if v, err := json.Marshal(bannedIPs); err != nil {
-					return err
-				} else {
-					return session.Put(KEY_BANNED_IPS, v)
 				}
+				return put(session, KEY_BANNED_IPS, bannedIPs)
 			})
 			if err != nil {
 				log.Print(err)
